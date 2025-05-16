@@ -1,142 +1,136 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="zh-TW">
 <head>
-  <meta charset="UTF-8">
-  <title>祭改報名表</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8" />
+  <title>聯絡表單 - 寫入 Google 工作表</title>
   <style>
     body {
-      margin: 0;
-      padding: 0;
-      font-family: "Arial", sans-serif;
-      background-color: #f6f8fb;
-    }
-
-    .container {
+      font-family: 'Noto Sans TC', sans-serif;
       max-width: 480px;
-      margin: 2rem auto;
-      padding: 2rem;
-      background-color: #ffffff;
-      border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin: 50px auto;
+      padding: 15px;
+      background: #f7f9fc;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0,0,0,0.1);
+    }
+    h1 {
       text-align: center;
+      color: #333;
     }
-
-    h2 {
-      color: #444;
-      margin-bottom: 1.5rem;
+    form > * {
+      margin-bottom: 12px;
+      width: 100%;
     }
-
-    label {
-      display: block;
-      text-align: left;
-      margin: 1rem 0 0.25rem;
-      font-weight: bold;
-      font-size: 1rem;
-    }
-
     input, textarea {
-      width: 100%;
-      padding: 0.75rem;
+      padding: 10px;
       border: 1px solid #ccc;
-      border-radius: 8px;
-      font-size: 1rem;
-      box-sizing: border-box;
+      border-radius: 4px;
+      font-size: 16px;
+      resize: vertical;
     }
-
     button {
-      margin-top: 1.5rem;
-      padding: 0.75rem 1.5rem;
-      background-color: #007aff;
-      color: white;
-      font-size: 1rem;
+      background-color: #007bff;
       border: none;
-      border-radius: 8px;
+      color: white;
+      padding: 12px;
+      font-size: 18px;
+      border-radius: 5px;
       cursor: pointer;
-      width: 100%;
+      transition: background-color 0.3s ease;
     }
-
-    button:hover {
-      background-color: #005fcc;
+    button:disabled {
+      background-color: #aaa;
+      cursor: not-allowed;
     }
-
+    button:hover:not(:disabled) {
+      background-color: #0056b3;
+    }
     .message {
-      margin-top: 1.5rem;
-      font-size: 1rem;
+      margin-top: 15px;
+      font-size: 16px;
+      padding: 10px;
+      border-radius: 5px;
+    }
+    .message.success {
+      background-color: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    .message.error {
+      background-color: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
     }
   </style>
-  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h2>📿 祭改報名表</h2>
-    <form id="signup-form">
-      <label for="name">姓名</label>
-      <input type="text" id="name" placeholder="請輸入姓名" required />
 
-      <label for="wish">祭改項目（可填多項）</label>
-      <textarea id="wish" rows="3" placeholder="例如：補財庫、冤親債主" required></textarea>
+  <h1>聯絡我們</h1>
 
-      <button type="submit">✅ 送出報名</button>
-    </form>
-    <div class="message" id="responseMsg"></div>
-  </div>
+  <form id="contactForm" novalidate>
+    <input type="text" id="name" name="name" placeholder="姓名" required minlength="2" />
+    <input type="email" id="email" name="email" placeholder="電子郵件" required />
+    <textarea id="message" name="message" rows="5" placeholder="留言內容" required minlength="5"></textarea>
+    <button type="submit" id="submitBtn">送出</button>
+  </form>
+
+  <div id="formMessage" role="alert" aria-live="polite"></div>
 
   <script>
-    const LIFF_ID = '2007416974-JzvPy6DZ';
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbyGV6eumKX2n3McquVS1LYtqn8iMr9stzwQ8uUkSoWQyKgz6CgXWVN5IIWsK9e-sHIL/exec';
+    const scriptURL = 'https://script.google.com/macros/s/AKfycbxzLkjKUrz3DZIT7k0KHkY7QGjz0bp1eXRtcG7O5mryJr1IJQJlU-v3gyOJEaeVypvT/exec';
+    const form = document.getElementById('contactForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const formMessage = document.getElementById('formMessage');
 
-    async function main() {
-      await liff.init({ liffId: LIFF_ID });
-      if (!liff.isLoggedIn()) liff.login();
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      formMessage.textContent = '';
+      formMessage.className = '';
+      
+      // 基本 HTML5 驗證
+      if (!form.checkValidity()) {
+        formMessage.textContent = '請填寫完整且正確的資料';
+        formMessage.className = 'message error';
+        return;
+      }
 
-      const userId = (await liff.getProfile()).userId;
+      // 取得表單資料
+      const data = {
+        name: form.name.value.trim(),
+        email: form.email.value.trim(),
+        message: form.message.value.trim()
+      };
 
-      document.getElementById('signup-form').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        const name = document.getElementById('name').value.trim();
-        const wish = document.getElementById('wish').value.trim();
-        const msgBox = document.getElementById('responseMsg');
+      // 禁用送出鈕避免重複提交
+      submitBtn.disabled = true;
+      submitBtn.textContent = '送出中...';
 
-        if (!name || !wish) {
-          msgBox.textContent = '⚠️ 請填寫所有欄位';
-          msgBox.style.color = 'red';
-          return;
+      try {
+        const res = await fetch(scriptURL, {
+          method: 'POST',
+          body: JSON.stringify(data),
+          headers: {'Content-Type': 'application/json'}
+        });
+
+        const result = await res.json();
+
+        if (result.status === 'success') {
+          formMessage.textContent = '感謝您的留言，我們會盡快回覆您！';
+          formMessage.className = 'message success';
+          form.reset();
+        } else {
+          formMessage.textContent = '送出失敗：' + (result.message || '未知錯誤');
+          formMessage.className = 'message error';
         }
-
-        const payload = {
-          name,
-          wish,
-          userId
-        };
-
-        try {
-          const res = await fetch(GAS_URL, {
-            method: 'POST',
-            body: JSON.stringify(payload),
-            headers: {
-              'Content-Type': 'application/json'
-            }
-          });
-
-          const text = await res.text();
-          if (text.includes('Success')) {
-            msgBox.textContent = '✅ 報名成功！感謝填寫。';
-            msgBox.style.color = 'green';
-            document.getElementById('signup-form').reset();
-          } else {
-            msgBox.textContent = '⚠️ 發生錯誤，請稍後再試。';
-            msgBox.style.color = 'red';
-          }
-        } catch (err) {
-          msgBox.textContent = '❌ 無法連線到伺服器';
-          msgBox.style.color = 'red';
-        }
-      });
-    }
-
-    main();
+      } catch (err) {
+        formMessage.textContent = '送出失敗，請檢查網路連線。';
+        formMessage.className = 'message error';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = '送出';
+      }
+    });
   </script>
+
 </body>
 </html>
