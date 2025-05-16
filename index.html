@@ -3,45 +3,307 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Google Sheets 表單送出範例</title>
+  <title>LINE 祭改報名系統</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body {
+      font-family: 'Helvetica Neue', sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f3f4f6;
+      font-size: 16px;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #333;
+    }
+    form {
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      max-width: 480px;
+      margin: 20px auto;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    input[type="text"], input[type="submit"], button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      margin-top: 5px;
+      box-sizing: border-box;
+      font-size: 18px;
+    }
+    button {
+      background-color: #06c755;
+      color: white;
+      border: none;
+      font-weight: bold;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    .checkbox-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .checkbox-grid label {
+      display: block;
+      background-color: #e5e7eb;
+      border-radius: 8px;
+      padding: 10px;
+      font-weight: normal;
+      cursor: pointer;
+    }
+    .checkbox-grid input {
+      margin-right: 8px;
+    }
+    #successMsg {
+      margin-top: 15px;
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      margin-top: 15px;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 10px;
+      text-align: center;
+      font-size: 16px;
+    }
+    th {
+      background-color: #f9fafb;
+      font-weight: bold;
+    }
+    td:nth-child(2) {
+      font-weight: bold;
+      font-size: 18px;
+      color: #111827;
+    }
+  </style>
 </head>
 <body>
-  <h1>報名表單</h1>
-  <form id="myForm">
-    <label>姓名：<input type="text" name="name" required /></label><br /><br />
-    <label>電話：<input type="text" name="phone" /></label><br /><br />
-    <label>項目：<input type="text" name="item" /></label><br /><br />
-    <button type="submit">送出</button>
-  </form>
-  <p id="msg"></p>
 
-  <script>
-    const form = document.getElementById("myForm");
-    const msg = document.getElementById("msg");
+<h1>LINE 祭改報名系統</h1>
 
-    // 替換成你自己的 Google Apps Script 網頁應用程式 URL
-    const scriptURL = "https://script.google.com/macros/s/AKfycbxzLkjKUrz3DZIT7k0KHkY7QGjz0bp1eXRtcG7O5mryJr1IJQJlU-v3gyOJEaeVypvT/exec";
+<form id="myForm">
+  <label for="nameInput">姓名</label>
+  <input type="text" id="nameInput" name="name" required />
 
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      msg.textContent = "送出中...";
-      const formData = new FormData(form);
+  <label>祭改項目（可多選）</label>
+  <div class="checkbox-grid">
+    <label><input type="checkbox" name="item" value="補財庫"> 補財庫</label>
+    <label><input type="checkbox" name="item" value="冤親債主"> 冤親債主</label>
+    <label><input type="checkbox" name="item" value="歷代祖先"> 歷代祖先</label>
+    <label><input type="checkbox" name="item" value="病符"> 病符</label>
+    <label><input type="checkbox" name="item" value="嬰靈"> 嬰靈</label>
+    <label><input type="checkbox" name="item" value="陰纏"> 陰纏</label>
+    <label><input type="checkbox" name="item" value="祭小人"> 祭小人</label>
+    <label><input type="checkbox" name="item" value="車關"> 車關</label>
+    <label><input type="checkbox" name="item" value="其他" id="chkOther"> 其他</label>
+  </div>
+  <input type="text" id="otherInput" placeholder="請輸入其他項目" style="display:none;" />
 
-      fetch(scriptURL, { method: "POST", body: formData })
-        .then((response) => response.json())
-        .then((data) => {
-          if (data.success) {
-            msg.textContent = "✅ 送出成功！";
-            form.reset();
-          } else {
-            msg.textContent = "❌ 送出失敗：" + (data.message || "未知錯誤");
-          }
-        })
-        .catch((error) => {
-          msg.textContent = "❌ 送出失敗，請檢查網路或後端設定。";
-          console.error("錯誤：", error);
+  <button type="submit" id="submitBtn">送出報名</button>
+</form>
+
+<div id="successMsg"></div>
+
+<h2>祭改名單</h2>
+<p id="totalCount">總報名人數：0</p>
+<p id="loadingRecords">讀取中...</p>
+
+<table id="recordsTable" style="display:none;">
+  <thead>
+    <tr>
+      <th>人數</th>
+      <th>姓名</th>
+      <th>項目</th>
+    </tr>
+  </thead>
+  <tbody id="recordsBody"></tbody>
+</table>
+
+<script>
+  const scriptURL = "https://script.google.com/macros/s/AKfycbxzLkjKUrz3DZIT7k0KHkY7QGjz0bp1eXRtcG7O5mryJr1IJQJlU-v3gyOJEaeVypvT/exec"; // 替換成你的 GAS 網址
+  const LIFF_ID = "2007416974-JzvPy6DZ"; // 替換成你的 LIFF ID
+  let userId = "";
+
+  const form = document.getElementById("myForm");
+  const successMsg = document.getElementById("successMsg");
+  const chkOther = document.getElementById("chkOther");
+  const otherInput = document.getElementById("otherInput");
+  const loadingRecords = document.getElementById("loadingRecords");
+  const recordsTable = document.getElementById("recordsTable");
+  const recordsBody = document.getElementById("recordsBody");
+  const totalCount = document.getElementById("totalCount");
+  const nameInput = document.getElementById("nameInput");
+  const submitBtn = document.getElementById("submitBtn");
+
+  chkOther.addEventListener("change", () => {
+    otherInput.style.display = chkOther.checked ? "block" : "none";
+    if (!chkOther.checked) otherInput.value = "";
+  });
+
+  window.onload = function () {
+    liff.init({ liffId: LIFF_ID }).then(() => {
+      if (liff.isLoggedIn()) {
+        liff.getProfile().then(profile => {
+          userId = profile.userId;
+          loadRecords();
+          checkUserRegistration();
         });
+      } else {
+        liff.login();
+      }
+    }).catch(err => {
+      successMsg.textContent = "⚠️ LIFF 初始化失敗：" + err;
+      successMsg.style.color = "red";
     });
-  </script>
+  };
+
+  form.addEventListener("submit", e => {
+    e.preventDefault();
+    successMsg.textContent = "";
+
+    const name = nameInput.value.trim();
+    if (!name) {
+      successMsg.style.color = "red";
+      successMsg.textContent = "請輸入姓名";
+      return;
+    }
+
+    let selectedItems = Array.from(document.querySelectorAll('input[name="item"]:checked'))
+      .map(cb => cb.value)
+      .filter(v => v !== "其他");
+
+    if (chkOther.checked) {
+      const otherVal = otherInput.value.trim();
+      if (otherVal) selectedItems.push(otherVal);
+    }
+
+    if (selectedItems.length === 0) {
+      successMsg.style.color = "red";
+      successMsg.textContent = "請選擇至少一個項目";
+      return;
+    }
+
+    const itemString = selectedItems.join("、");
+    const formData = new URLSearchParams();
+    formData.append("name", name);
+    formData.append("item", itemString);
+    formData.append("userId", userId);
+
+    successMsg.style.color = "black";
+    successMsg.textContent = "送出中...";
+
+    fetch(scriptURL, {
+      method: "POST",
+      body: formData,
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      mode: "cors"
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.success) {
+        successMsg.style.color = "green";
+        successMsg.innerHTML = `✅ ${submitBtn.textContent}成功！<br>🙋‍♂️ 姓名：<strong>${name}</strong>`;
+        form.reset();
+        otherInput.style.display = "none";
+        submitBtn.textContent = "送出報名";
+        loadRecords();
+      } else {
+        successMsg.style.color = "red";
+        successMsg.textContent = "❌ 操作失敗：" + (data.message || "未知錯誤");
+      }
+    })
+    .catch(() => {
+      successMsg.style.color = "red";
+      successMsg.textContent = "❌ 網路或後端錯誤";
+    });
+  });
+
+  function loadRecords() {
+    loadingRecords.style.display = "block";
+    recordsTable.style.display = "none";
+    totalCount.textContent = "總報名人數：0";
+
+    fetch(scriptURL)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.records)) {
+          const records = data.records.slice(1).reverse();
+          totalCount.textContent = `總報名人數：${records.length}`;
+          recordsBody.innerHTML = "";
+
+          if (records.length === 0) {
+            loadingRecords.textContent = "目前無報名資料";
+            return;
+          }
+
+          for (let i = 0; i < records.length; i++) {
+            const row = records[i];
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td>${records.length - i}</td>
+              <td>${row[0] || ""}</td>
+              <td>${row[1] || ""}</td>
+            `;
+            recordsBody.appendChild(tr);
+          }
+
+          loadingRecords.style.display = "none";
+          recordsTable.style.display = "table";
+        }
+      })
+      .catch(() => {
+        loadingRecords.textContent = "❌ 資料載入失敗";
+      });
+  }
+
+  function checkUserRegistration() {
+    fetch(scriptURL)
+      .then(res => res.json())
+      .then(data => {
+        if (data.success && Array.isArray(data.records)) {
+          const records = data.records;
+          for (let i = 1; i < records.length; i++) {
+            const [name, item, uid] = records[i];
+            if (uid === userId) {
+              nameInput.value = name;
+              submitBtn.textContent = "修改報名";
+
+              const itemList = item.split("、");
+              document.querySelectorAll('input[name="item"]').forEach(cb => {
+                cb.checked = itemList.includes(cb.value);
+              });
+
+              // 檢查是否有其他項目
+              const knownItems = ["補財庫", "冤親債主", "歷代祖先", "病符", "嬰靈", "陰纏", "祭小人", "車關"];
+              const otherItems = itemList.filter(i => !knownItems.includes(i));
+              if (otherItems.length > 0) {
+                chkOther.checked = true;
+                otherInput.style.display = "block";
+                otherInput.value = otherItems.join("、");
+              }
+              break;
+            }
+          }
+        }
+      });
+  }
+</script>
 </body>
 </html>
