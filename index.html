@@ -2,135 +2,46 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8" />
-  <title>聯絡表單 - 寫入 Google 工作表</title>
-  <style>
-    body {
-      font-family: 'Noto Sans TC', sans-serif;
-      max-width: 480px;
-      margin: 50px auto;
-      padding: 15px;
-      background: #f7f9fc;
-      border-radius: 8px;
-      box-shadow: 0 0 8px rgba(0,0,0,0.1);
-    }
-    h1 {
-      text-align: center;
-      color: #333;
-    }
-    form > * {
-      margin-bottom: 12px;
-      width: 100%;
-    }
-    input, textarea {
-      padding: 10px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      font-size: 16px;
-      resize: vertical;
-    }
-    button {
-      background-color: #007bff;
-      border: none;
-      color: white;
-      padding: 12px;
-      font-size: 18px;
-      border-radius: 5px;
-      cursor: pointer;
-      transition: background-color 0.3s ease;
-    }
-    button:disabled {
-      background-color: #aaa;
-      cursor: not-allowed;
-    }
-    button:hover:not(:disabled) {
-      background-color: #0056b3;
-    }
-    .message {
-      margin-top: 15px;
-      font-size: 16px;
-      padding: 10px;
-      border-radius: 5px;
-    }
-    .message.success {
-      background-color: #d4edda;
-      color: #155724;
-      border: 1px solid #c3e6cb;
-    }
-    .message.error {
-      background-color: #f8d7da;
-      color: #721c24;
-      border: 1px solid #f5c6cb;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Google Sheets 表單送出範例</title>
 </head>
 <body>
-
-  <h1>聯絡我們</h1>
-
-  <form id="contactForm" novalidate>
-    <input type="text" id="name" name="name" placeholder="姓名" required minlength="2" />
-    <input type="email" id="email" name="email" placeholder="電子郵件" required />
-    <textarea id="message" name="message" rows="5" placeholder="留言內容" required minlength="5"></textarea>
-    <button type="submit" id="submitBtn">送出</button>
+  <h1>報名表單</h1>
+  <form id="myForm">
+    <label>姓名：<input type="text" name="name" required /></label><br /><br />
+    <label>電話：<input type="text" name="phone" /></label><br /><br />
+    <label>項目：<input type="text" name="item" /></label><br /><br />
+    <button type="submit">送出</button>
   </form>
-
-  <div id="formMessage" role="alert" aria-live="polite"></div>
+  <p id="msg"></p>
 
   <script>
-    const scriptURL = 'https://script.google.com/macros/s/AKfycbxzLkjKUrz3DZIT7k0KHkY7QGjz0bp1eXRtcG7O5mryJr1IJQJlU-v3gyOJEaeVypvT/exec';
-    const form = document.getElementById('contactForm');
-    const submitBtn = document.getElementById('submitBtn');
-    const formMessage = document.getElementById('formMessage');
+    const form = document.getElementById("myForm");
+    const msg = document.getElementById("msg");
 
-    form.addEventListener('submit', async e => {
+    // 替換成你自己的 Google Apps Script 網頁應用程式 URL
+    const scriptURL = "https://script.google.com/macros/s/AKfycbxzLkjKUrz3DZIT7k0KHkY7QGjz0bp1eXRtcG7O5mryJr1IJQJlU-v3gyOJEaeVypvT/exec";
+
+    form.addEventListener("submit", (e) => {
       e.preventDefault();
-      formMessage.textContent = '';
-      formMessage.className = '';
-      
-      // 基本 HTML5 驗證
-      if (!form.checkValidity()) {
-        formMessage.textContent = '請填寫完整且正確的資料';
-        formMessage.className = 'message error';
-        return;
-      }
+      msg.textContent = "送出中...";
+      const formData = new FormData(form);
 
-      // 取得表單資料
-      const data = {
-        name: form.name.value.trim(),
-        email: form.email.value.trim(),
-        message: form.message.value.trim()
-      };
-
-      // 禁用送出鈕避免重複提交
-      submitBtn.disabled = true;
-      submitBtn.textContent = '送出中...';
-
-      try {
-        const res = await fetch(scriptURL, {
-          method: 'POST',
-          body: JSON.stringify(data),
-          headers: {'Content-Type': 'application/json'}
+      fetch(scriptURL, { method: "POST", body: formData })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success) {
+            msg.textContent = "✅ 送出成功！";
+            form.reset();
+          } else {
+            msg.textContent = "❌ 送出失敗：" + (data.message || "未知錯誤");
+          }
+        })
+        .catch((error) => {
+          msg.textContent = "❌ 送出失敗，請檢查網路或後端設定。";
+          console.error("錯誤：", error);
         });
-
-        const result = await res.json();
-
-        if (result.status === 'success') {
-          formMessage.textContent = '感謝您的留言，我們會盡快回覆您！';
-          formMessage.className = 'message success';
-          form.reset();
-        } else {
-          formMessage.textContent = '送出失敗：' + (result.message || '未知錯誤');
-          formMessage.className = 'message error';
-        }
-      } catch (err) {
-        formMessage.textContent = '送出失敗，請檢查網路連線。';
-        formMessage.className = 'message error';
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = '送出';
-      }
     });
   </script>
-
 </body>
 </html>
